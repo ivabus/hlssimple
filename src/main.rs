@@ -43,7 +43,7 @@ struct Args {
 #[get("/play/<page..>")]
 fn play(page: PathBuf) -> RawHtml<String> {
 	RawHtml(format!(
-		"<video controls>
+		"<video controls width=\"100%\">
     <source src=\"/{}\" type=\"application/x-mpegURL\">
 </video>",
 		page.to_str().unwrap()
