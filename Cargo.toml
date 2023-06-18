@@ -1,0 +1,13 @@
+[package]
+name = "hlssimple"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/ivabus/hlssimple"
+description = "HTTP server for hls streaming and nothing more"
+
+
+[dependencies]
+rocket = "0.5.0-rc.3"
+clap = { version = "4.3.4", features = [ "derive" ] }
+smurf = "0.2.0"
