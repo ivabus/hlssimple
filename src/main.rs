@@ -88,6 +88,9 @@ fn index() -> RawHtml<String> {
 		}
 	}
 	m3u8.sort_by_key(|x| x.alias.clone());
+	if m3u8.len() == 0 {
+		res += "No streams available";
+	}
 	for i in m3u8 {
 		res += &*format!(
 			"<a href=\"{}\">{}</a> <a href=\"/play/{}\">Play</a> (copy link into your player)<br>",
