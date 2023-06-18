@@ -31,6 +31,8 @@ use rocket::response::content::RawHtml;
 use std::fs::read_dir;
 use std::path::PathBuf;
 
+const INDEX: &'static str = include_str!("../index.html");
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -57,10 +59,7 @@ struct StreamURL {
 fn index() -> RawHtml<String> {
 	let args = Args::parse();
 	let dir = read_dir(args.streams_dir).unwrap();
-	let mut res = match smurf::io::read_file_to_str(&PathBuf::from("./index.html")) {
-		Some(s) => s,
-		None => String::new(),
-	};
+	let mut res = INDEX.to_string();
 	let mut m3u8: Vec<StreamURL> = vec![];
 	for i in dir {
 		let path = i.unwrap().path();
