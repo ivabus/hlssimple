@@ -22,92 +22,76 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+mod create;
+mod edit;
+mod serve;
+
 #[macro_use]
 extern crate rocket;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use rocket::fs::FileServer;
-use rocket::response::content::RawHtml;
-use std::fs::read_dir;
 use std::path::PathBuf;
 
 const INDEX: &'static str = include_str!("../index.html");
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-struct Args {
-	#[arg(short, long)]
-	streams_dir: String,
+enum Commands {
+	/// Run server instance
+	#[command(visible_alias("s"))]
+	Serve {
+		streams_dir: PathBuf,
+	},
+	/// Edit ended HLS streams
+	#[command(subcommand, visible_alias("e"))]
+	Edit(EditCommands),
+
+	/// Split file into stream
+	#[command(visible_alias("c"))]
+	Create {
+		freq: f64,
+		file: PathBuf,
+	},
 }
 
-#[get("/play/<page..>")]
-fn play(page: PathBuf) -> RawHtml<String> {
-	RawHtml(format!(
-		"<video controls width=\"100%\">
-    <source src=\"/{}\" type=\"application/x-mpegURL\">
-</video>",
-		page.to_str().unwrap()
-	))
-}
-
-struct StreamURL {
-	alias: String,
-	url: String,
-}
-
-#[get("/")]
-fn index() -> RawHtml<String> {
-	let args = Args::parse();
-	let dir = read_dir(args.streams_dir).unwrap();
-	let mut res = INDEX.to_string();
-	let mut m3u8: Vec<StreamURL> = vec![];
-	for i in dir {
-		let path = i.unwrap().path();
-		if path.is_file() && path.file_name().unwrap().to_str().unwrap() != ".DS_Store" {
-			if path.extension().unwrap().to_str().unwrap() == "m3u8" {
-				let filename = path.file_name().unwrap().to_str().unwrap();
-				m3u8.push(StreamURL {
-					url: filename.to_string(),
-					alias: filename.to_string(),
-				});
-			}
-		}
-		if path.is_dir() {
-			let mut dir: Vec<String> = vec![];
-			for i in read_dir(&path).unwrap() {
-				dir.push(i.unwrap().file_name().to_str().unwrap().to_string())
-			}
-			for i in &dir {
-				if i.contains(".m3u8") {
-					m3u8.push(StreamURL {
-						alias: path.file_name().unwrap().to_str().unwrap().to_string(),
-						url: format!("{}/{}", path.file_name().unwrap().to_str().unwrap(), i),
-					});
-				}
-			}
-		}
-	}
-	m3u8.sort_by_key(|x| x.alias.clone());
-	if m3u8.len() == 0 {
-		res += "No streams available";
-	}
-	for i in m3u8 {
-		res += &*format!(
-			"<a href=\"{}\">{}</a> <a href=\"/play/{}\">Play</a> (copy link into your player)<br>",
-			&i.url, &i.alias, &i.url
-		);
-	}
-	RawHtml(res)
+#[derive(Subcommand, Debug)]
+enum EditCommands {
+	/// Join hls stream into one file
+	#[command(visible_alias("c"))]
+	Concat {
+		m3u8: PathBuf,
+	},
 }
 
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
-	let args = Args::parse();
-	let _rocket = rocket::build()
-		.mount("/", routes![play, index])
-		.mount("/", FileServer::from(args.streams_dir))
-		.launch()
-		.await?;
+	let args = Commands::parse();
+	println!("{:#?}", args);
+	match args {
+		Commands::Serve {
+			streams_dir,
+		} => {
+			let _rocket = rocket::build()
+				.mount("/", routes![serve::play, serve::index])
+				.mount("/", FileServer::from(streams_dir))
+				.launch()
+				.await?;
+		}
+		Commands::Edit(command) => match command {
+			EditCommands::Concat {
+				m3u8,
+			} => {
+				edit::concat(m3u8);
+			}
+		},
+		Commands::Create {
+			file: _,
+			freq: _,
+		} => {
+			todo!()
+		}
+	};
 
 	Ok(())
 }
